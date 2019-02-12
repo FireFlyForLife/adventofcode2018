@@ -119,11 +119,55 @@ fn main() -> Result<(), Error> {
     println!("Guard {} minute sleeping chart: {:?}", sleepiest_guard, sleepiest_minute.to_vec());
     let best_minute = array_get_index_of_highest_value(&sleepiest_minute);
 
-    println!("\n\nSleepiest guard is: {}. With {} minutes! The most sleepiest minute was {}.\nSo the solution is: {}", 
+    println!("\n\nSleepiest guard is: {}. With {} minutes! The most sleepiest minute was {}.\nSo the solution for part1 is: {}", 
         sleepiest_guard,
         sleep_counter[&sleepiest_guard],
         best_minute,
         sleepiest_guard * (best_minute as u32));
+
+    let mut sleepmap: HashMap<u32, [u32; 60]> = HashMap::new();
+    for (date, msg) in &entries {
+        let matches = options_regex.matches(&msg);
+        if matches.matched(0) { //falls asleep
+            sleep_start_time = *date;
+        }else if matches.matched(1) { //wakes up
+            let delta: u32 = date.signed_duration_since(sleep_start_time).num_minutes() as u32;
+            if !sleepmap.contains_key(&current_guard_id) {
+                sleepmap.insert(current_guard_id, [0; 60]);
+            }
+            for min in sleep_start_time.minute()..sleep_start_time.minute()+delta {
+                sleepmap.get_mut(&current_guard_id).unwrap()[(min % 60) as usize] += 1;
+            }
+            // if !sleep_counter.contains_key(&current_guard_id) {
+            //     sleep_counter.insert(current_guard_id, 0);
+            // }
+            // *sleep_counter.get_mut(&current_guard_id).unwrap() += delta;
+        }else if matches.matched(2) { //switch guard
+            let caps_id = guard_change_regex.captures(&msg).unwrap();
+            let id: u32 = caps_id["id"].parse().unwrap();
+            current_guard_id = id;
+        }
+    }
+
+    let mut best_guard_id = 999999999;
+    let mut best_sleep_minute = 0;
+    let mut best_sleep_amount_minutes = 0;
+    for (guard_id, array) in &sleepmap {
+        for index in 0..60 {
+            if array[index] > best_sleep_amount_minutes {
+                best_guard_id = *guard_id;
+                best_sleep_amount_minutes = array[index];
+                best_sleep_minute = index as u32;
+            }
+        }
+    }
+
+    println!("Best guard for part 2: {} with minute: {}, (which has been counted {} times, same number: {}) So the awnser is: {}", 
+    best_guard_id, 
+    best_sleep_minute, 
+    sleepmap[&best_guard_id][best_sleep_minute as usize],
+    best_sleep_amount_minutes,
+    best_guard_id * best_sleep_minute);
 
     Ok(())
 }
